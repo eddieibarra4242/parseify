@@ -1,12 +1,30 @@
+/**
+ * Parsify, a simple recursive descent parser generator.
+ * Copyright (C) 2024  Eduardo Ibarra
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use std::collections::HashMap;
 use crate::productions::{NonTerminal, Production};
-use crate::scanner::{Coord, Span, Token};
+use crate::scanner::Token;
 
 pub(crate) struct Parser {
   scanner: Vec<Token>,
   current_ndx: usize,
   productions: HashMap<String, Vec<Production>>,
-  first_nt: String
+  first_nt: String,
 }
 
 impl Parser {
@@ -15,7 +33,7 @@ impl Parser {
       scanner: tokens,
       current_ndx: 0,
       productions: HashMap::new(),
-      first_nt: String::new()
+      first_nt: String::new(),
     }
   }
 
