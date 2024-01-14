@@ -20,35 +20,39 @@ use clap::Parser;
 use crate::scanner::Scanner;
 
 mod scanner;
+mod parser;
+mod productions;
 
 /// Simple recursive descent parser generator.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Output file path
-    #[arg(short, long)]
-    output: Option<String>,
+  /// Output file path
+  #[arg(short, long)]
+  output: Option<String>,
 
-    /// input file path
-    #[arg()]
-    input: String,
+  /// input file path
+  #[arg()]
+  input: String,
 
-    /// output file's language
-    #[arg(short, long)]
-    lang: Option<String>,
+  /// output file's language
+  #[arg(short, long)]
+  lang: Option<String>,
 }
 
 fn main() {
-    let cli_args = Args::parse();
+  let cli_args = Args::parse();
 
-    let mut scanner = Scanner::new(cli_args.input);
-    let scanned_result = scanner.scan();
+  let mut scanner = Scanner::new(cli_args.input);
+  let scanned_result = scanner.scan();
 
-    if scanned_result.is_err() {
-        println!("Scan error: {:?}", scanned_result.as_ref().err().unwrap());
-        return;
-    }
+  if scanned_result.is_err() {
+    println!("Scan error: {:?}", scanned_result.as_ref().err().unwrap());
+    return;
+  }
 
-    let tokens = scanned_result.unwrap();
-    println!("{:?}", tokens);
+  let tokens = scanned_result.unwrap();
+
+  let mut parser = parser::Parser::new(tokens);
+  parser.parse();
 }

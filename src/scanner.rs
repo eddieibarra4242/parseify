@@ -31,18 +31,9 @@ pub struct Span {
   end: Coord,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum Kinds {
-  Id,
-  Terminal,
-  Equal,
-  End,
-  EndOfFile,
-}
-
 #[derive(Debug, Clone)]
 pub struct Token {
-  pub(crate) kind: Kinds,
+  pub(crate) kind: String,
   pub(crate) value: String,
   span: Span,
 }
@@ -78,18 +69,21 @@ impl Scanner {
   pub(crate) fn scan(&mut self) -> Result<Vec<Token>, ScanError> {
     while self.has_next() {
       let start_of_token = self.next_char;
-      let mut kind = Kinds::Id;
+      let mut kind = String::new();
 
       let current = self.current()?;
       if current.is_whitespace() {
         self.whitespace()?;
         continue; // do not make whitespace tokens.
+      } else if current == '/' {
+        self.comment()?;
+        continue; // do not make comment tokens.
       } else if current == '_' || current.is_alphabetic() {
         self.identifier()?;
-        kind = Kinds::Id;
+        kind = "ID".to_string();
       } else if current == '"' || current == '\'' {
         self.literal()?;
-        kind = Kinds::Terminal;
+        kind = "TERM".to_string();
       } else if current == ':' {
         // either ':' or '::=' is an equals token.
         self.match_char(':')?;
@@ -99,13 +93,13 @@ impl Scanner {
           self.match_char('=')?;
         }
 
-        kind = Kinds::Equal;
+        kind = "EQUALS".to_string();
       } else if current == ';' {
         self.match_char(';')?;
-        kind = Kinds::End;
+        kind = "END".to_string();
       } else if current == '.' {
         self.match_char('.')?;
-        kind = Kinds::End;
+        kind = "END".to_string();
         // todo: maybe make newlines stop tokens as well...
       } else {
         return Err(UnexpectedChar('_', current));
@@ -121,7 +115,7 @@ impl Scanner {
     }
 
     self.tokens.push(Token {
-      kind: Kinds::EndOfFile,
+      kind: "EOF".to_string(),
       value: "".to_string(),
       span: Span { start: self.index_to_coord(self.next_char), end: self.index_to_coord(self.next_char) },
     });
@@ -163,6 +157,25 @@ impl Scanner {
       line_num: self.seen_newlines + 1,
       col: (index as i64 - self.last_seen_newline_ndx) as usize,
     }
+  }
+
+  fn comment(&mut self) -> Result<(), ScanError> {
+    self.match_char('/')?;
+    self.match_char('/')?;
+
+    while self.has_next() && self.current()? != '\n' {
+      self.match_char(self.current()?)?;
+    }
+
+    if self.has_next() && self.current()? == '\n' {
+      self.seen_newlines += 1;
+      self.last_seen_newline_ndx = self.next_char as i64;
+      self.match_char('\n')?;
+    } else {
+      return Err(UnexpectedChar('\n', self.current()?)); // unicorn character
+    }
+
+    Ok(())
   }
 
   fn whitespace(&mut self) -> Result<(), ScanError> {

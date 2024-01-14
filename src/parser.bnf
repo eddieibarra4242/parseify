@@ -1,0 +1,12 @@
+bnf_file ::= production production_list;
+
+production_list ::= production production_list;
+production_list ::= ;
+
+production ::= "ID" "EQUALS" token_list "END";
+
+token_list ::= token token_list;
+token_list ::= ;
+
+token ::= "ID";
+token ::= "TERM";
