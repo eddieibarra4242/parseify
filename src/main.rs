@@ -22,7 +22,6 @@ use crate::language::Language;
 use crate::scanner::Scanner;
 
 mod scanner;
-mod parser_old;
 mod productions;
 mod language;
 mod generator;
