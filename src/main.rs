@@ -54,5 +54,7 @@ fn main() {
   let tokens = scanned_result.unwrap();
 
   let mut parser = parser::Parser::new(tokens);
-  parser.parse();
+  let non_terminals = parser.parse();
+
+  println!("{:?}", non_terminals);
 }

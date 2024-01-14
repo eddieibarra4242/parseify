@@ -53,6 +53,19 @@ pub(crate) struct Scanner {
   last_seen_newline_ndx: i64,
 }
 
+impl Token {
+  pub(crate) fn new() -> Self {
+    Token {
+      kind: "".to_string(),
+      value: "".to_string(),
+      span: Span {
+        start: Coord { line_num: 0, col: 0 },
+        end: Coord { line_num: 0, col: 0 },
+      },
+    }
+  }
+}
+
 impl Scanner {
   pub(crate) fn new(file_path: String) -> Self {
     let file = fs::read_to_string(file_path.clone()).expect(format!("Failed to open file: {}", file_path).as_str());

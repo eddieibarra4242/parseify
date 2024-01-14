@@ -29,6 +29,9 @@ impl Production {
   pub(crate) fn push(&mut self, token: Token) {
     self.list.push(token);
   }
+  pub(crate) fn push_to_front(&mut self, token: Token) {
+    self.list.insert(0, token);
+  }
 }
 
 impl NonTerminal {

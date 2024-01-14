@@ -1,8 +1,12 @@
-use crate::scanner::Token;
+use std::collections::HashMap;
+use crate::productions::{NonTerminal, Production};
+use crate::scanner::{Coord, Span, Token};
 
 pub(crate) struct Parser {
   scanner: Vec<Token>,
   current_ndx: usize,
+  productions: HashMap<String, Vec<Production>>,
+  first_nt: String
 }
 
 impl Parser {
@@ -10,6 +14,8 @@ impl Parser {
     Parser {
       scanner: tokens,
       current_ndx: 0,
+      productions: HashMap::new(),
+      first_nt: String::new()
     }
   }
 
@@ -32,9 +38,37 @@ impl Parser {
     self.scanner[self.current_ndx].kind.as_str()
   }
 
-  pub(crate) fn parse(&mut self) {
+  pub(crate) fn parse(&mut self) -> Vec<NonTerminal> {
     self.bnf_file();
     self.match_kind("EOF");
+
+    let mut result = vec![];
+
+    for (name, prods) in &self.productions {
+      let mut prods_sanitized = vec![];
+
+      for prod in prods {
+        let mut new_prod = Production::new();
+        for token in &prod.list {
+          if token.kind.eq("ID") && !self.productions.contains_key(&token.value) {
+            let mut new_token = token.clone();
+            new_token.kind = "TERM".to_string();
+            new_prod.push(new_token);
+          } else {
+            new_prod.push(token.clone());
+          }
+        }
+
+        prods_sanitized.push(new_prod);
+      }
+
+      let mut nt = NonTerminal::new(name.clone());
+      nt.productions = prods_sanitized;
+      nt.is_start_term = self.first_nt.eq(name);
+      result.push(nt);
+    }
+
+    result
   }
 
   fn bnf_file(&mut self) {
@@ -57,35 +91,51 @@ impl Parser {
     }
   }
 
-  fn token_list(&mut self) {
+  fn token_list(&mut self) -> Production {
     if ["TERM", "ID"].contains(&self.current()) {
-      self.token();
-      self.token_list();
+      let token = self.token();
+      let mut production = self.token_list();
+
+      production.push_to_front(token);
+      return production;
     } else if ["END"].contains(&self.current()) {
       // do nothing
     } else {
       self.error("syntax error", &["ID", "END", "TERM"]);
     }
+
+    Production::new()
   }
 
   fn production(&mut self) {
     if ["ID"].contains(&self.current()) {
-      self.match_kind("ID");
+      let nt = self.match_kind("ID");
       self.match_kind("EQUALS");
-      self.token_list();
+      let prod = self.token_list();
       self.match_kind("END");
+
+      if self.first_nt.is_empty() {
+        self.first_nt = nt.value.clone();
+      }
+
+      if !self.productions.contains_key(&nt.value) {
+        self.productions.insert(nt.value.clone(), vec![]);
+      }
+
+      self.productions.get_mut(&nt.value).unwrap().push(prod);
     } else {
       self.error("syntax error", &["ID"]);
     }
   }
 
-  fn token(&mut self) {
+  fn token(&mut self) -> Token {
     if ["ID"].contains(&self.current()) {
-      self.match_kind("ID");
+      self.match_kind("ID")
     } else if ["TERM"].contains(&self.current()) {
-      self.match_kind("TERM");
+      self.match_kind("TERM")
     } else {
       self.error("syntax error", &["TERM", "ID"]);
+      Token::new()
     }
   }
 }
