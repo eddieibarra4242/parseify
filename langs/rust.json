@@ -1,0 +1,79 @@
+{
+  "imports": "",
+  "parse_error": "",
+  "class_def": "pub(crate) struct Parser {\n    scanner: Vec<Token>,\n    current_ndx: usize\n}",
+  "class_body_wrapper": {
+    "prefix": "impl Parser {\n",
+    "suffix": "}"
+  },
+  "required_functions": {
+    "constructor": [
+      "pub(crate) fn new(tokens: Vec<Token>) -> Self {",
+      "    Parser {",
+      "        scanner: tokens,",
+      "        current_ndx: 0,",
+      "    }",
+      "}"
+    ],
+    "error_func": [
+      "fn error(&self, msg: &str, expected: &[&str]) {",
+      "    panic!(\"Parse error {} at {}:  Expected {:?}\", msg, self.scanner[self.current_ndx].value, expected);",
+      "}"
+    ],
+    "match_func": [
+      "fn match_kind(&mut self, kind: &str) -> Token {",
+      "    if self.current() == kind {",
+      "        let prev = self.scanner[self.current_ndx].clone();",
+      "        self.current_ndx += 1;",
+      "        return prev;",
+      "    } else {",
+      "        self.error(\"\", &[kind]);",
+      "    }",
+      "    self.scanner[self.current_ndx].clone()",
+      "}"
+    ],
+    "current_func": [
+      "fn current(&self) -> &str {",
+      "    self.scanner[self.current_ndx].kind.as_str()",
+      "}"
+    ]
+  },
+  "func_call": {
+    "prefix": "self.",
+    "suffix": "();"
+  },
+  "match_call": {
+    "prefix": "self.match_kind(\"",
+    "suffix": "\");"
+  },
+  "error_call": {
+    "prefix": "self.error(\"syntax error\", &[",
+    "suffix": "]);"
+  },
+  "condition": {
+    "prefix": "[",
+    "suffix": "].contains(&self.current())"
+  },
+  "if_clause": {
+    "prefix": "if ",
+    "suffix": " "
+  },
+  "elseif_clause": {
+    "prefix": " else if ",
+    "suffix": " "
+  },
+  "else_clause": " else ",
+  "public_func_def": {
+    "prefix": "pub(crate) fn ",
+    "suffix": "(&mut self)"
+  },
+  "private_func_def": {
+    "prefix": "fn ",
+    "suffix": "(&mut self)"
+  },
+  "func_body": {
+    "prefix": "{",
+    "suffix": "}"
+  },
+  "empty_production_body": "// do nothing"
+}

@@ -22,10 +22,11 @@ use crate::language::Language;
 use crate::scanner::Scanner;
 
 mod scanner;
-mod parser;
+mod parser_old;
 mod productions;
 mod language;
 mod generator;
+mod parser;
 
 /// Simple recursive descent parser generator.
 #[derive(Parser, Debug)]

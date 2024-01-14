@@ -119,7 +119,7 @@ impl Parser {
     } else if ["END"].contains(&self.current()) {
       // do nothing
     } else {
-      self.error("syntax error", &["ID", "END", "TERM"]);
+      self.error("syntax error", &["END", "TERM", "ID"]);
     }
 
     Production::new()
@@ -152,7 +152,7 @@ impl Parser {
     } else if ["TERM"].contains(&self.current()) {
       self.match_kind("TERM")
     } else {
-      self.error("syntax error", &["TERM", "ID"]);
+      self.error("syntax error", &["ID", "TERM"]);
       Token::new()
     }
   }

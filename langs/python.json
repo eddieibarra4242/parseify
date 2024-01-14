@@ -1,0 +1,74 @@
+{
+  "imports": "from typing import NoReturn, Iterable, Iterator",
+  "parse_error": "class ParseErrorException(Exception):\n    msg: str\n    token: Token\n    expected: set[str]\n\n    def __init__(self, msg: str, current: Token, expected: set[str]):\n        self.msg = msg\n        self.current = current\n        self.expected = expected\n\n    def __str__(self) -> str:\n        return f\"Parse error {self.msg} at {self.current}:  Expected {self.expected}\"",
+  "class_def": "class Parser:\n    scanner:Iterator[Token]\n    _current:Token",
+  "class_body_wrapper": {
+    "prefix": "",
+    "suffix": ""
+  },
+  "required_functions": {
+    "constructor": [
+      "def __init__(self, scanner: Iterable[Token]):",
+      "    self.scanner: Iterator[Token] = iter(scanner)",
+      "    self._current = next(self.scanner)"
+    ],
+    "error_func": [
+      "def error(self, msg: str, expected: set[str]) -> NoReturn:",
+      "    raise ParseErrorException(msg, self._current, expected)"
+    ],
+    "match_func": [
+      "def match(self, kind: str)->Token:",
+      "    if self.current() == kind:",
+      "        prev: Token = self._current",
+      "        try:",
+      "            self._current = next(self.scanner)",
+      "        except StopIteration:",
+      "            pass",
+      "        return prev",
+      "    else:",
+      "        self.error(\"\", {kind})"
+    ],
+    "current_func": [
+      "def current(self)->str:",
+      "    return self._current.kind"
+    ]
+  },
+  "func_call": {
+    "prefix": "self._",
+    "suffix": "()"
+  },
+  "match_call": {
+    "prefix": "self.match('",
+    "suffix": "')"
+  },
+  "error_call": {
+    "prefix": "self.error('syntax error', {",
+    "suffix": "})"
+  },
+  "condition": {
+    "prefix": "self.current() in [",
+    "suffix": "]"
+  },
+  "if_clause": {
+    "prefix": "if ",
+    "suffix": ""
+  },
+  "elseif_clause": {
+    "prefix": "elif ",
+    "suffix": ""
+  },
+  "else_clause": "else",
+  "public_func_def": {
+    "prefix": "def ",
+    "suffix": "(self)"
+  },
+   "private_func_def": {
+    "prefix": "def _",
+    "suffix": "(self)"
+  },
+  "func_body": {
+    "prefix": ":",
+    "suffix": ""
+  },
+  "empty_production_body": "pass"
+}
