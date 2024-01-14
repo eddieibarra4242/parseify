@@ -16,12 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::fs;
 use clap::Parser;
+use crate::language::Language;
 use crate::scanner::Scanner;
 
 mod scanner;
 mod parser;
 mod productions;
+mod language;
+mod generator;
 
 /// Simple recursive descent parser generator.
 #[derive(Parser, Debug)]
@@ -43,6 +47,12 @@ struct Args {
 fn main() {
   let cli_args = Args::parse();
 
+  // fixme: maybe make an install location for language specifications.
+
+  // default to rust language output.
+  let lang_json = fs::read_to_string(cli_args.lang.unwrap_or("./langs/rust.json".to_string())).unwrap();
+  let lang: Language = serde_json::from_str(lang_json.as_str()).unwrap();
+
   let mut scanner = Scanner::new(cli_args.input);
   let scanned_result = scanner.scan();
 
@@ -58,5 +68,11 @@ fn main() {
 
   productions::process(&mut non_terminals);
 
-  println!("{:?}", non_terminals);
+  let output: String = generator::generate_parser(&non_terminals, &lang);
+
+  let result = fs::write(cli_args.output.unwrap_or("./output.txt".to_string()), output);
+
+  if result.is_err() {
+    println!("Failed to write to file!");
+  }
 }
