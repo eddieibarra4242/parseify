@@ -114,9 +114,14 @@ fn nullable_dfs(
       continue;
     }
 
+    if adj.is_term {
+      is_null = false;
+      break;
+    }
+
     nullable_dfs(nullable_info, graph, adj.key.clone(), visited);
 
-    if adj.is_term || *nullable_info.get(&adj.key).unwrap() == false {
+    if *nullable_info.get(&adj.key).unwrap() == false {
       is_null = false;
     }
   }
