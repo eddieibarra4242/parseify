@@ -16,14 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
 use crate::scanner::Token;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
   pub(crate) list: Vec<Token>,
-  pub(crate) predict_set: HashSet<String>,
+  pub(crate) predict_set: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,17 +31,17 @@ pub(crate) struct NonTerminal {
   pub(crate) name: String,
   pub(crate) is_start_term: bool,
   pub(crate) is_nullable: bool,
-  pub(crate) first_set: HashSet<String>,
-  pub(crate) follow_set: HashSet<String>,
+  pub(crate) first_set: BTreeSet<String>,
+  pub(crate) follow_set: BTreeSet<String>,
   pub(crate) productions: Vec<Production>,
-  pub(crate) predict_set: HashSet<String>,
+  pub(crate) predict_set: BTreeSet<String>,
 }
 
 impl Production {
   pub(crate) fn new() -> Self {
     Production {
       list: vec![],
-      predict_set: HashSet::new(),
+      predict_set: BTreeSet::new(),
     }
   }
 
@@ -59,10 +59,10 @@ impl NonTerminal {
       name,
       is_nullable: false,
       is_start_term: false,
-      first_set: HashSet::new(),
-      follow_set: HashSet::new(),
+      first_set: BTreeSet::new(),
+      follow_set: BTreeSet::new(),
       productions: vec![],
-      predict_set: HashSet::new(),
+      predict_set: BTreeSet::new(),
     }
   }
 
@@ -132,7 +132,7 @@ fn nullable_dfs(
 }
 
 fn first_n_follow_set_dfs(
-  first_set: &mut HashSet<String>,
+  first_set: &mut BTreeSet<String>,
   graph: &HashMap<String, HashSet<Node>>,
   start: String,
   visited: &mut Vec<String>,

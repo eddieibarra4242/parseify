@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use crate::language::Language;
 use crate::productions::{NonTerminal, Production};
 
@@ -213,7 +213,7 @@ fn emit_nonterminal_function_body(ctx: &mut GeneratorContext, nt: &NonTerminal, 
   ctx.emit_newline();
 }
 
-fn generate_predict_list(predict_set: &HashSet<String>) -> String {
+fn generate_predict_list(predict_set: &BTreeSet<String>) -> String {
   let mut predict_list = String::new();
 
   for token in predict_set {
