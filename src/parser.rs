@@ -24,7 +24,6 @@ pub(crate) struct Parser {
   scanner: Vec<Token>,
   current_ndx: usize,
   productions: HashMap<String, Vec<Production>>,
-  first_nt: String,
 }
 
 impl Parser {
@@ -33,7 +32,6 @@ impl Parser {
       scanner: tokens,
       current_ndx: 0,
       productions: HashMap::new(),
-      first_nt: String::new(),
     }
   }
 
@@ -60,9 +58,21 @@ impl Parser {
     self.bnf_file();
     self.match_kind("EOF");
 
+    let mut nt_order: Vec<String> = vec![];
+
+    let mut prev = self.scanner.first().unwrap();
+    for token in &self.scanner {
+      if token.kind.eq("EQUALS") && !nt_order.contains(&prev.value) {
+        nt_order.push(prev.value.clone());
+      }
+
+      prev = token;
+    }
+
     let mut result = vec![];
 
-    for (name, prods) in &self.productions {
+    for name in &nt_order {
+      let prods = self.productions.get(name).unwrap();
       let mut prods_sanitized = vec![];
 
       for prod in prods {
@@ -82,7 +92,7 @@ impl Parser {
 
       let mut nt = NonTerminal::new(name.clone());
       nt.productions = prods_sanitized;
-      nt.is_start_term = self.first_nt.eq(name);
+      nt.is_start_term = nt_order.first().unwrap().eq(name);
       result.push(nt);
     }
 
@@ -131,10 +141,6 @@ impl Parser {
       self.match_kind("EQUALS");
       let prod = self.token_list();
       self.match_kind("END");
-
-      if self.first_nt.is_empty() {
-        self.first_nt = nt.value.clone();
-      }
 
       if !self.productions.contains_key(&nt.value) {
         self.productions.insert(nt.value.clone(), vec![]);
