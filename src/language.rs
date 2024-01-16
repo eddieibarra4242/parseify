@@ -48,6 +48,7 @@ pub(crate) struct Language {
   pub(crate) else_clause: String,
   pub(crate) public_func_def: Wrapper,
   pub(crate) private_func_def: Wrapper,
+  pub(crate) if_body: Wrapper,
   pub(crate) func_body: Wrapper,
   pub(crate) empty_production_body: String,
 }

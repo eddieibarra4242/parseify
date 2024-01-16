@@ -188,19 +188,19 @@ fn emit_nonterminal_function_body(ctx: &mut GeneratorContext, nt: &NonTerminal, 
     ctx.push_str(wrapper.wrap(language.condition.wrap(generate_predict_list(&prod.predict_set).as_str()).as_str()).as_str());
 
     // See FUNC_WRAPPER_NOTE
-    ctx.push_str(language.func_body.prefix.as_str());
+    ctx.push_str(language.if_body.prefix.as_str());
     ctx.emit_newline();
     ctx.push_tabs();
     emit_production_body(ctx, prod, language);
     ctx.pop_tabs();
     ctx.start_line();
-    ctx.push_str(language.func_body.suffix.as_str());
+    ctx.push_str(language.if_body.suffix.as_str());
   }
 
   ctx.push_str(language.else_clause.as_str());
 
   // See FUNC_WRAPPER_NOTE
-  ctx.push_str(language.func_body.prefix.as_str());
+  ctx.push_str(language.if_body.prefix.as_str());
   ctx.emit_newline();
 
   ctx.push_tabs();
@@ -209,7 +209,7 @@ fn emit_nonterminal_function_body(ctx: &mut GeneratorContext, nt: &NonTerminal, 
   ctx.emit_newline();
   ctx.pop_tabs();
   ctx.start_line();
-  ctx.push_str(language.func_body.suffix.as_str());
+  ctx.push_str(language.if_body.suffix.as_str());
   ctx.emit_newline();
 }
 

@@ -66,6 +66,10 @@
     "prefix": "def _",
     "suffix": "(self)"
   },
+  "if_body": {
+    "prefix": ":",
+    "suffix": ""
+  },
   "func_body": {
     "prefix": ":",
     "suffix": ""
