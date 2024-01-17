@@ -65,10 +65,6 @@ impl NonTerminal {
       predict_set: BTreeSet::new(),
     }
   }
-
-  pub(crate) fn push(&mut self, production: Production) {
-    self.productions.push(production);
-  }
 }
 
 

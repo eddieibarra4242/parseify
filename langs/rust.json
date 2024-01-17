@@ -1,5 +1,5 @@
 {
-  "imports": "",
+  "imports": "use crate::parser::ParserError::UnexpectedToken;",
   "parse_error": "",
   "class_def": "pub(crate) enum ParserError {\n  UnexpectedToken(Token, Vec<&'static str>)\n}\n\npub(crate) struct Parser {\n    scanner: Vec<Token>,\n    current_ndx: usize\n}",
   "class_body_wrapper": {

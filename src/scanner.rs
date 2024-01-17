@@ -16,33 +16,32 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::fs;
 use crate::scanner::ScanError::{NoMoreChars, UnexpectedChar};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Coord {
-  line_num: usize,
-  col: usize,
+  pub(crate) line_num: usize,
+  pub(crate) col: usize,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct Span {
-  start: Coord,
-  end: Coord,
+  pub(crate) start: Coord,
+  pub(crate) end: Coord,
 }
 
 #[derive(Debug, Clone)]
 pub struct Token {
   pub(crate) kind: String,
   pub(crate) value: String,
-  span: Span,
+  pub(crate) span: Span,
 }
 
 #[derive(Debug)]
 pub enum ScanError {
   // expected, saw
-  UnexpectedChar(char, char),
-  NoMoreChars,
+  UnexpectedChar(char, char, Coord),
+  NoMoreChars(Coord),
 }
 
 pub(crate) struct Scanner {
@@ -53,23 +52,8 @@ pub(crate) struct Scanner {
   last_seen_newline_ndx: i64,
 }
 
-impl Token {
-  pub(crate) fn new() -> Self {
-    Token {
-      kind: "".to_string(),
-      value: "".to_string(),
-      span: Span {
-        start: Coord { line_num: 0, col: 0 },
-        end: Coord { line_num: 0, col: 0 },
-      },
-    }
-  }
-}
-
 impl Scanner {
-  pub(crate) fn new(file_path: String) -> Self {
-    let file = fs::read_to_string(file_path.clone()).expect(format!("Failed to open file: {}", file_path).as_str());
-
+  pub(crate) fn new(file: String) -> Self {
     Scanner {
       file,
       next_char: 0,
@@ -82,7 +66,7 @@ impl Scanner {
   pub(crate) fn scan(&mut self) -> Result<Vec<Token>, ScanError> {
     while self.has_next() {
       let start_of_token = self.next_char;
-      let mut kind = String::new();
+      let kind: String;
 
       let current = self.current()?;
       if current.is_whitespace() {
@@ -115,7 +99,7 @@ impl Scanner {
         kind = "END".to_string();
         // todo: maybe make newlines stop tokens as well...
       } else {
-        return Err(UnexpectedChar('_', current));
+        return Err(UnexpectedChar('_', current, self.index_to_coord(self.next_char)));
       }
 
       let value = self.file[start_of_token..self.next_char].to_string();
@@ -142,22 +126,22 @@ impl Scanner {
 
   fn current(&self) -> Result<char, ScanError> {
     if !self.has_next() {
-      return Err(NoMoreChars);
+      return Err(NoMoreChars(self.index_to_coord(self.next_char)));
     }
 
     match self.file.chars().nth(self.next_char) {
-      None => Err(NoMoreChars),
+      None => Err(NoMoreChars(self.index_to_coord(self.next_char))),
       Some(character) => Ok(character)
     }
   }
 
   fn match_char(&mut self, expected: char) -> Result<(), ScanError> {
     if !self.has_next() {
-      return Err(NoMoreChars);
+      return Err(NoMoreChars(self.index_to_coord(self.next_char)));
     }
 
     if self.current()? != expected {
-      return Err(UnexpectedChar(expected, self.current()?));
+      return Err(UnexpectedChar(expected, self.current()?, self.index_to_coord(self.next_char)));
     }
 
     self.next_char += 1;
@@ -185,7 +169,7 @@ impl Scanner {
       self.last_seen_newline_ndx = self.next_char as i64;
       self.match_char('\n')?;
     } else {
-      return Err(UnexpectedChar('\n', self.current()?)); // unicorn character
+      return Err(UnexpectedChar('\n', self.current()?, self.index_to_coord(self.next_char))); // unicorn character
     }
 
     Ok(())
@@ -207,7 +191,7 @@ impl Scanner {
   }
 
   fn identifier(&mut self) -> Result<(), ScanError> {
-    let mut current = self.current()?;
+    let current = self.current()?;
 
     if current == '_' || current.is_alphabetic() {
       self.match_char(current)?;
@@ -228,12 +212,12 @@ impl Scanner {
     } else if current == '\'' {
       self.match_char('\'')?;
     } else {
-      return Err(UnexpectedChar('"', current));
+      return Err(UnexpectedChar('"', current, self.index_to_coord(self.next_char)));
     }
 
     while self.current()? != '"' && self.current()? != '\'' {
       if self.current()? == '\n' {
-        return Err(UnexpectedChar('"', '\n'));
+        return Err(UnexpectedChar('"', '\n', self.index_to_coord(self.next_char)));
       }
 
       self.match_char(self.current()?)?;
@@ -246,7 +230,7 @@ impl Scanner {
     } else if current == '\'' {
       self.match_char('\'')?;
     } else {
-      return Err(UnexpectedChar('"', current));
+      return Err(UnexpectedChar('"', current, self.index_to_coord(self.next_char)));
     }
 
     Ok(())

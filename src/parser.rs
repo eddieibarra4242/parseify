@@ -18,7 +18,13 @@
 
 use std::collections::HashMap;
 use crate::productions::{NonTerminal, Production};
+use crate::parser::ParserError::UnexpectedToken;
 use crate::scanner::Token;
+
+#[derive(Debug)]
+pub(crate) enum ParserError {
+  UnexpectedToken(Token, Vec<&'static str>)
+}
 
 pub(crate) struct Parser {
   scanner: Vec<Token>,
@@ -35,28 +41,26 @@ impl Parser {
     }
   }
 
-  fn error(&self, msg: &str, expected: &[&str]) {
-    panic!("Parse error {} at {}:  Expected {:?}", msg, self.scanner[self.current_ndx].value, expected);
-  }
-
-  fn match_kind(&mut self, kind: &str) -> Token {
-    if self.current() == kind {
+  fn match_kind(&mut self, kind: &'static str) -> Result<Token, ParserError> {
+    return if self.current() == kind {
       let prev = self.scanner[self.current_ndx].clone();
       self.current_ndx += 1;
-      return prev;
+      Ok(prev)
     } else {
-      self.error("", &[kind]);
-    }
-    self.scanner[self.current_ndx].clone()
+      Err(UnexpectedToken(self.current_token(), vec![kind]))
+    };
   }
 
   fn current(&self) -> &str {
     self.scanner[self.current_ndx].kind.as_str()
   }
+  fn current_token(&self) -> Token {
+    self.scanner[self.current_ndx].clone()
+  }
 
-  pub(crate) fn parse(&mut self) -> Vec<NonTerminal> {
-    self.bnf_file();
-    self.match_kind("EOF");
+  pub(crate) fn parse(&mut self) -> Result<Vec<NonTerminal>, ParserError> {
+    self.bnf_file()?;
+    self.match_kind("EOF")?;
 
     let mut nt_order: Vec<String> = vec![];
 
@@ -96,51 +100,37 @@ impl Parser {
       result.push(nt);
     }
 
-    result
+    Ok(result)
   }
 
-  fn bnf_file(&mut self) {
+  fn bnf_file(&mut self) -> Result<(), ParserError> {
     if ["ID"].contains(&self.current()) {
-      self.production();
-      self.production_list();
+      self.production()?;
+      self.production_list()?;
     } else {
-      self.error("syntax error", &["ID"]);
+      return Err(UnexpectedToken(self.current_token(), vec!["ID"]));
     }
+    Ok(())
   }
 
-  fn production_list(&mut self) {
+  fn production_list(&mut self) -> Result<(), ParserError> {
     if ["ID"].contains(&self.current()) {
-      self.production();
-      self.production_list();
+      self.production()?;
+      self.production_list()?;
     } else if ["EOF"].contains(&self.current()) {
       // do nothing
     } else {
-      self.error("syntax error", &["EOF", "ID"]);
+      return Err(UnexpectedToken(self.current_token(), vec!["EOF", "ID"]));
     }
+    Ok(())
   }
 
-  fn token_list(&mut self) -> Production {
-    if ["TERM", "ID"].contains(&self.current()) {
-      let token = self.token();
-      let mut production = self.token_list();
-
-      production.push_to_front(token);
-      return production;
-    } else if ["END"].contains(&self.current()) {
-      // do nothing
-    } else {
-      self.error("syntax error", &["END", "TERM", "ID"]);
-    }
-
-    Production::new()
-  }
-
-  fn production(&mut self) {
+  fn production(&mut self) -> Result<(), ParserError> {
     if ["ID"].contains(&self.current()) {
-      let nt = self.match_kind("ID");
-      self.match_kind("EQUALS");
-      let prod = self.token_list();
-      self.match_kind("END");
+      let nt = self.match_kind("ID")?;
+      self.match_kind("EQUALS")?;
+      let prod = self.token_list()?;
+      self.match_kind("END")?;
 
       if !self.productions.contains_key(&nt.value) {
         self.productions.insert(nt.value.clone(), vec![]);
@@ -148,18 +138,33 @@ impl Parser {
 
       self.productions.get_mut(&nt.value).unwrap().push(prod);
     } else {
-      self.error("syntax error", &["ID"]);
+      return Err(UnexpectedToken(self.current_token(), vec!["ID"]));
     }
+    Ok(())
   }
 
-  fn token(&mut self) -> Token {
-    if ["ID"].contains(&self.current()) {
-      self.match_kind("ID")
-    } else if ["TERM"].contains(&self.current()) {
-      self.match_kind("TERM")
+  fn token_list(&mut self) -> Result<Production, ParserError> {
+    return if ["ID", "TERM"].contains(&self.current()) {
+      let token = self.token()?;
+      let mut production = self.token_list()?;
+
+      production.push_to_front(token);
+      Ok(production)
+    } else if ["END"].contains(&self.current()) {
+      // match nothing
+      Ok(Production::new())
     } else {
-      self.error("syntax error", &["ID", "TERM"]);
-      Token::new()
-    }
+      Err(UnexpectedToken(self.current_token(), vec!["END", "ID", "TERM"]))
+    };
+  }
+
+  fn token(&mut self) -> Result<Token, ParserError> {
+    return if ["ID"].contains(&self.current()) {
+      Ok(self.match_kind("ID")?)
+    } else if ["TERM"].contains(&self.current()) {
+      Ok(self.match_kind("TERM")?)
+    } else {
+      Err(UnexpectedToken(self.current_token(), vec!["ID", "TERM"]))
+    };
   }
 }

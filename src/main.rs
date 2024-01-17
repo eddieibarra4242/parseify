@@ -18,6 +18,7 @@
 
 use std::fs;
 use clap::Parser;
+use crate::error_handler::{print_parse_err, print_scan_error};
 use crate::language::Language;
 use crate::scanner::Scanner;
 
@@ -26,6 +27,7 @@ mod productions;
 mod language;
 mod generator;
 mod parser;
+mod error_handler;
 
 /// Simple recursive descent parser generator.
 #[derive(Parser, Debug)]
@@ -52,19 +54,27 @@ fn main() {
   // default to rust language output.
   let lang_json = fs::read_to_string(cli_args.lang.unwrap_or("./langs/rust.json".to_string())).unwrap();
   let lang: Language = serde_json::from_str(lang_json.as_str()).unwrap();
+  let file = fs::read_to_string(cli_args.input.clone()).expect(format!("Failed to open file: {}", cli_args.input).as_str());
 
-  let mut scanner = Scanner::new(cli_args.input);
+  let mut scanner = Scanner::new(file.clone());
   let scanned_result = scanner.scan();
 
   if scanned_result.is_err() {
-    println!("Scan error: {:?}", scanned_result.as_ref().err().unwrap());
+    print_scan_error(file, scanned_result.err().unwrap());
     return;
   }
 
   let tokens = scanned_result.unwrap();
 
   let mut parser = parser::Parser::new(tokens);
-  let mut non_terminals = parser.parse();
+  let non_terminals_wrapped = parser.parse();
+
+  if non_terminals_wrapped.is_err() {
+    print_parse_err(file.clone(), non_terminals_wrapped.err().unwrap());
+    return;
+  }
+
+  let mut non_terminals = non_terminals_wrapped.unwrap();
 
   productions::process(&mut non_terminals);
 
