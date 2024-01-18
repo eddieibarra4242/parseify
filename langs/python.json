@@ -41,6 +41,7 @@
     "prefix": "self.match('",
     "suffix": "')"
   },
+  "ok_tag": "",
   "error_call": {
     "prefix": "self.error('syntax error', {",
     "suffix": "})"

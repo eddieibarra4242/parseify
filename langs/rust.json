@@ -31,6 +31,7 @@
       "fn current(&self) -> &str {",
       "    self.scanner[self.current_ndx].kind.as_str()",
       "}",
+      "",
       "fn current_token(&self) -> Token {",
       "    self.scanner[self.current_ndx].clone()",
       "}"
@@ -44,9 +45,10 @@
     "prefix": "self.match_kind(\"",
     "suffix": "\")?;"
   },
+  "ok_tag": "Ok(())",
   "error_call": {
-    "prefix": "return Err(UnexpectedToken(self.current_token(), vec![",
-    "suffix": "]));"
+    "prefix": "Err(UnexpectedToken(self.current_token(), vec![",
+    "suffix": "]))"
   },
   "condition": {
     "prefix": "[",
@@ -75,7 +77,7 @@
   },
   "func_body": {
     "prefix": "{",
-    "suffix": "Ok(())}\n"
+    "suffix": "}\n"
   },
   "empty_production_body": "// do nothing"
 }

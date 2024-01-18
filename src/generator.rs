@@ -149,6 +149,9 @@ fn emit_required_functions(ctx: &mut GeneratorContext, language: &Language, star
   ctx.push_str(language.match_call.wrap("EOF").as_str());
   ctx.emit_newline();
 
+  ctx.start_line();
+  ctx.push_str(language.ok_tag.as_str());
+
   ctx.pop_tabs();
   ctx.emit_newline();
 
@@ -192,6 +195,9 @@ fn emit_nonterminal_function_body(ctx: &mut GeneratorContext, nt: &NonTerminal, 
     ctx.emit_newline();
     ctx.push_tabs();
     emit_production_body(ctx, prod, language);
+    ctx.start_line();
+    ctx.push_str(language.ok_tag.as_str());
+    ctx.emit_newline();
     ctx.pop_tabs();
     ctx.start_line();
     ctx.push_str(language.if_body.suffix.as_str());

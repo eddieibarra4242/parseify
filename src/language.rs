@@ -41,6 +41,7 @@ pub(crate) struct Language {
   pub(crate) required_functions: ReqFunctions,
   pub(crate) func_call: Wrapper,
   pub(crate) match_call: Wrapper,
+  pub(crate) ok_tag: String,
   pub(crate) error_call: Wrapper,
   pub(crate) condition: Wrapper,
   pub(crate) if_clause: Wrapper,
