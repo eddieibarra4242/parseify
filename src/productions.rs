@@ -18,6 +18,7 @@
 
 use std::collections::{HashMap, BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
+use crate::error_handler::print_ambiguity;
 use crate::scanner::Token;
 
 #[derive(Debug, Clone)]
@@ -159,16 +160,15 @@ pub(crate) fn process(non_terminals: &mut Vec<NonTerminal>) {
   first_sets(non_terminals, &nullable_info);
   follow_sets(non_terminals, &nullable_info);
   predict_sets(non_terminals);
+  find_ambiguities(non_terminals);
 
   for nt in &mut *non_terminals {
-    for prod in &mut nt.productions {
-      prod.predict_set.iter().for_each(|x| {
-        if !nt.predict_set.insert(x.clone()) {
-          // Fixme: add ambiguity error here.
-        }
-      });
+    if !nt.is_start_term {
+      continue;
+    }
 
-      if !nt.is_start_term || prod.list.is_empty() {
+    for prod in &mut nt.productions {
+      if prod.list.is_empty() {
         continue;
       }
 
@@ -445,6 +445,26 @@ pub(crate) fn predict_sets(nts: &mut Vec<NonTerminal>) {
           prod.predict_set.insert(x.clone());
         });
       }
+    }
+  }
+}
+
+pub(crate) fn find_ambiguities(nts: &Vec<NonTerminal>) {
+  for nt in nts {
+    let mut seen_prediction_tokens = BTreeSet::new();
+
+    for prod in &nt.productions {
+      let intersection = seen_prediction_tokens.intersection(&prod.predict_set);
+      if intersection.clone().count() > 0 {
+        print_ambiguity(&nt.name, intersection);
+      }
+
+      let mut vector = vec![];
+      for str in &prod.predict_set {
+        vector.push(str.clone());
+      }
+
+      seen_prediction_tokens.extend(vector);
     }
   }
 }

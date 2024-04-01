@@ -1,3 +1,4 @@
+use std::collections::btree_set::Intersection;
 use crate::parser::ParserError;
 use crate::scanner::ScanError;
 
@@ -80,4 +81,13 @@ pub(crate) fn print_scan_error(file: String, error: ScanError) {
       println!();
     }
   }
+}
+
+pub(crate) fn print_ambiguity(nt_name: &String, intersection: Intersection<String>) {
+  println!("Found ambiguities in {}:", nt_name);
+  for amb in intersection {
+    println!("  {}", amb);
+  }
+
+  println!();
 }
