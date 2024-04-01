@@ -62,6 +62,25 @@ impl GeneratorContext {
   }
 }
 
+fn normalize_name(name: &String) -> String {
+  let mut result = String::new();
+
+  for character in name.chars() {
+    if character == '<' || character == '>' {
+      continue;
+    }
+
+    if character == '-' {
+      result.push('_');
+      continue;
+    }
+
+    result.push(character);
+  }
+
+  result
+}
+
 fn strip_literal(literal: &String) -> String {
   literal.replace("'", "").replace("\"", "")
 }
@@ -90,7 +109,7 @@ fn generate_class_body(non_terminals: &Vec<NonTerminal>, language: &Language) ->
 
   let start_term = non_terminals.iter().find(|x| { x.is_start_term }).unwrap();
 
-  emit_required_functions(&mut ctx, language, start_term.name.as_str());
+  emit_required_functions(&mut ctx, language, normalize_name(&start_term.name).as_str());
 
   for nt in non_terminals {
     emit_nonterminal_function(&mut ctx, nt, language);
@@ -162,7 +181,7 @@ fn emit_required_functions(ctx: &mut GeneratorContext, language: &Language, star
 
 fn emit_nonterminal_function(ctx: &mut GeneratorContext, nt: &NonTerminal, language: &Language) {
   ctx.start_line();
-  ctx.push_str(language.private_func_def.wrap(nt.name.as_str()).as_str());
+  ctx.push_str(language.private_func_def.wrap(normalize_name(&nt.name).as_str()).as_str());
 
   // See FUNC_WRAPPER_NOTE
   ctx.push_str(language.func_body.prefix.as_str());
@@ -249,7 +268,7 @@ fn emit_production_body(ctx: &mut GeneratorContext, prod: &Production, language:
     ctx.start_line();
     let content = match token.kind.as_str() {
       "TERM" => language.match_call.wrap(strip_literal(&token.value).as_str()),
-      "ID" => language.func_call.wrap(token.value.as_str()),
+      "ID" => language.func_call.wrap(normalize_name(&token.value).as_str()),
       "EOF" => language.match_call.wrap("EOF"),
       _ => { "".to_string() }
     };

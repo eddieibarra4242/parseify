@@ -75,7 +75,7 @@ impl Scanner {
       } else if current == '/' {
         self.comment()?;
         continue; // do not make comment tokens.
-      } else if current == '_' || current.is_alphabetic() {
+      } else if current == '<' || current == '_' || current.is_alphabetic() {
         self.identifier()?;
         kind = "ID".to_string();
       } else if current == '"' || current == '\'' {
@@ -97,7 +97,6 @@ impl Scanner {
       } else if current == '.' {
         self.match_char('.')?;
         kind = "END".to_string();
-        // todo: maybe make newlines stop tokens as well...
       } else {
         return Err(UnexpectedChar('_', current, self.index_to_coord(self.next_char)));
       }
@@ -176,7 +175,7 @@ impl Scanner {
   }
 
   fn whitespace(&mut self) -> Result<(), ScanError> {
-    while self.current()?.is_whitespace() {
+    while self.has_next() && self.current()?.is_whitespace() {
       let current = self.current()?;
 
       if current == '\n' {
@@ -191,14 +190,23 @@ impl Scanner {
   }
 
   fn identifier(&mut self) -> Result<(), ScanError> {
-    let current = self.current()?;
+    let mut match_diamond_brackets = false;
+    if self.current()? == '<' {
+      self.match_char('<')?;
+      match_diamond_brackets = true;
+    }
 
+    let current = self.current()?;
     if current == '_' || current.is_alphabetic() {
       self.match_char(current)?;
     }
 
-    while self.current()? == '_' || self.current()?.is_alphabetic() || self.current()?.is_digit(10) {
+    while self.current()? == '-' || self.current()? == '_' || self.current()?.is_alphabetic() || self.current()?.is_digit(10) {
       self.match_char(self.current()?)?;
+    }
+
+    if match_diamond_brackets {
+      self.match_char('>')?;
     }
 
     Ok(())
