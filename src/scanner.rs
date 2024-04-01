@@ -97,6 +97,9 @@ impl Scanner {
       } else if current == '.' {
         self.match_char('.')?;
         kind = "END".to_string();
+      } else if current == '|' {
+        self.match_char('|')?;
+        kind = "|".to_string();
       } else {
         return Err(UnexpectedChar('_', current, self.index_to_coord(self.next_char)));
       }

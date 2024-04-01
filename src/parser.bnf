@@ -1,12 +1,13 @@
 bnf_file ::= production production_list;
 
-production_list ::= production production_list;
-production_list ::= ;
+production_list ::= production production_list | ;
 
-production ::= ID EQUALS token_list END;
+production ::= ID EQUALS rhs END;
 
-token_list ::= token token_list;
-token_list ::= ;
+rhs ::= token_list opt_alternation;
 
-token ::= ID;
-token ::= TERM;
+opt_alternation ::= '|' token_list opt_alternation | ;
+
+token_list ::= token token_list | ;
+
+token ::= ID | TERM;

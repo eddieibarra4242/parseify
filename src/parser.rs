@@ -129,33 +129,61 @@ impl Parser {
     if ["ID"].contains(&self.current()) {
       let nt = self.match_kind("ID")?;
       self.match_kind("EQUALS")?;
-      let prod = self.token_list()?;
+      let prod_list = self.rhs()?;
       self.match_kind("END")?;
 
       if !self.productions.contains_key(&nt.value) {
         self.productions.insert(nt.value.clone(), vec![]);
       }
 
-      self.productions.get_mut(&nt.value).unwrap().push(prod);
+      self.productions.get_mut(&nt.value).unwrap().extend(prod_list);
+      Ok(())
     } else {
-      return Err(UnexpectedToken(self.current_token(), vec!["ID"]));
+      Err(UnexpectedToken(self.current_token(), vec!["ID"]))
     }
-    Ok(())
+  }
+
+  fn rhs(&mut self) -> Result<Vec<Production>, ParserError> {
+    if ["|", "END", "ID", "TERM"].contains(&self.current()) {
+      let prod = self.token_list()?;
+      let mut list = self.opt_alternation()?;
+
+      list.insert(0, prod);
+      Ok(list)
+    } else {
+      Err(UnexpectedToken(self.current_token(), vec!["|", "END", "ID", "TERM"]))
+    }
+  }
+
+  fn opt_alternation(&mut self) -> Result<Vec<Production>, ParserError> {
+    if ["|"].contains(&self.current()) {
+      self.match_kind("|")?;
+      let prod = self.token_list()?;
+      let mut list = self.opt_alternation()?;
+
+      list.insert(0, prod);
+      Ok(list)
+    } else if ["END"].contains(&self.current()) {
+      // do nothing
+      Ok(vec![])
+    } else {
+      Err(UnexpectedToken(self.current_token(), vec!["|", "END"]))
+    }
   }
 
   fn token_list(&mut self) -> Result<Production, ParserError> {
-    return if ["ID", "TERM"].contains(&self.current()) {
+    if ["ID", "TERM"].contains(&self.current()) {
       let token = self.token()?;
       let mut production = self.token_list()?;
 
       production.push_to_front(token);
       Ok(production)
-    } else if ["END"].contains(&self.current()) {
-      // match nothing
+    } else if ["|", "END"].contains(&self.current()) {
+      // do nothing
       Ok(Production::new())
     } else {
-      Err(UnexpectedToken(self.current_token(), vec!["END", "ID", "TERM"]))
-    };
+      Err(UnexpectedToken(self.current_token(), vec!["|", "END", "ID", "TERM"]))
+    }
   }
 
   fn token(&mut self) -> Result<Token, ParserError> {
