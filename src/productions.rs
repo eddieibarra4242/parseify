@@ -19,12 +19,21 @@
 use std::collections::{HashMap, BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
 use crate::error_handler::print_ambiguity;
+use crate::productions::Nullable::{Maybe, No, Yes};
 use crate::scanner::Token;
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub(crate) enum Nullable {
+  No,
+  Maybe,
+  Yes
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
   pub(crate) list: Vec<Token>,
   pub(crate) predict_set: BTreeSet<String>,
+  nullable: Nullable,
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +52,7 @@ impl Production {
     Production {
       list: vec![],
       predict_set: BTreeSet::new(),
+      nullable: Maybe
     }
   }
 
@@ -90,41 +100,6 @@ impl PartialEq for Node {
 impl Hash for Node {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.key.hash(state);
-  }
-}
-
-fn nullable_dfs(
-  nullable_info: &mut HashMap<String, bool>,
-  graph: &HashMap<String, HashSet<Node>>,
-  start: String,
-  visited: &mut Vec<String>,
-) {
-  visited.push(start.clone());
-
-  if nullable_info.contains_key(&start) && *nullable_info.get(&start).unwrap() {
-    return;
-  }
-
-  let mut is_null = true;
-  for adj in graph.get(&start).unwrap() {
-    if visited.contains(&adj.key) {
-      continue;
-    }
-
-    if adj.is_term {
-      is_null = false;
-      break;
-    }
-
-    nullable_dfs(nullable_info, graph, adj.key.clone(), visited);
-
-    if *nullable_info.get(&adj.key).unwrap() == false {
-      is_null = false;
-    }
-  }
-
-  if nullable_info.contains_key(&start) {
-    *nullable_info.get_mut(&start).unwrap() = is_null;
   }
 }
 
@@ -180,84 +155,61 @@ pub(crate) fn process(non_terminals: &mut Vec<NonTerminal>) {
 }
 
 pub(crate) fn nullability(nts: &mut Vec<NonTerminal>) {
-  let mut graph: HashMap<String, HashSet<Node>> = HashMap::new();
+  let mut nt_nullable_info: HashMap<String, Nullable> = HashMap::new();
 
   for nt in &mut *nts {
-    if nt.is_nullable {
-      continue;
-    }
+    nt_nullable_info.insert(nt.name.clone(), Maybe);
+  }
 
-    if !graph.contains_key(&nt.name) {
-      graph.insert(nt.name.clone(), HashSet::new());
-    }
+  let mut should_recompute = true;
+  while should_recompute {
+    should_recompute = false;
 
-    for prod in &nt.productions {
-      if prod.list.is_empty() {
-        nt.is_nullable = true;
-        break;
+    for nt in &mut *nts {
+      if !nt_nullable_info[&nt.name].eq(&Maybe) {
+        continue;
       }
 
-      for token in &prod.list {
-        if !graph.contains_key(&token.value) {
-          graph.insert(token.value.clone(), HashSet::new());
+      for prod in &mut nt.productions {
+        if prod.list.is_empty() {
+          prod.nullable = Yes;
+          should_recompute = true;
         }
 
-        let new_node = Node::new(token.value.clone(), !token.kind.eq("ID"));
-        graph.get_mut(&nt.name).as_mut().unwrap().insert(new_node);
-      }
-    }
-  }
+        if prod.nullable.eq(&Yes) {
+          nt_nullable_info.insert(nt.name.clone(), Yes);
+          should_recompute = true;
+          break;
+        }
 
-  let mut nullable_info: HashMap<String, bool> = HashMap::new();
-  for nt_inner in &mut *nts {
-    nullable_info.insert(nt_inner.name.clone(), nt_inner.is_nullable);
-  }
-
-  for nt in &mut *nts {
-    if nt.is_nullable {
-      continue;
-    }
-
-    for prod in nt.productions.clone() {
-      let mut prod_graph: HashMap<String, HashSet<Node>> = HashMap::new();
-
-      for key in graph.keys() {
-        if key.eq(&nt.name) {
+        if prod.nullable.eq(&No) {
           continue;
         }
 
-        prod_graph.insert(key.clone(), HashSet::new());
-
-        for node in graph.get(key).unwrap() {
-          if node.key.eq(&nt.name) {
-            continue;
+        let mut is_definitely_null = true;
+        for token in &prod.list {
+          if token.kind.eq("TERM") {
+            prod.nullable = No;
+            is_definitely_null = false;
+            should_recompute = true;
+            break;
           }
 
-          prod_graph.get_mut(key).unwrap().insert(node.clone());
+          if !nt_nullable_info[&token.value].eq(&Yes) {
+            is_definitely_null = false;
+          }
+        }
+
+        if is_definitely_null {
+          prod.nullable = Yes;
+          should_recompute = true;
         }
       }
-
-      prod_graph.insert(nt.name.clone(), HashSet::new());
-
-      let adj_set = prod_graph.get_mut(&nt.name).unwrap();
-      for token in &prod.list {
-        let new_node = Node::new(token.value.clone(), !token.kind.eq("ID"));
-        adj_set.insert(new_node);
-      }
-
-      let mut visited: Vec<String> = vec![];
-      nullable_dfs(
-        &mut nullable_info,
-        &prod_graph,
-        nt.name.clone(),
-        &mut visited,
-      );
-      nt.is_nullable = *nullable_info.get(&nt.name).unwrap();
-
-      if nt.is_nullable {
-        break;
-      }
     }
+  }
+
+  for nt in &mut *nts {
+    nt.is_nullable = nt_nullable_info[&nt.name].eq(&Yes);
   }
 }
 
