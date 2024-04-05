@@ -138,11 +138,11 @@ pub(crate) fn process(non_terminals: &mut Vec<NonTerminal>) {
   find_ambiguities(non_terminals);
 
   for nt in &mut *non_terminals {
-    if !nt.is_start_term {
-      continue;
-    }
-
     for prod in &mut nt.productions {
+      for x in &prod.predict_set {
+        nt.predict_set.insert(x.clone());
+      }
+
       if prod.list.is_empty() {
         continue;
       }
@@ -371,7 +371,7 @@ pub(crate) fn follow_sets(nts: &mut Vec<NonTerminal>, nullable_info: &HashMap<St
 
 pub(crate) fn predict_sets(nts: &mut Vec<NonTerminal>) {
   let nts_clone = nts.clone();
-  for nt in nts {
+  for nt in &mut *nts {
     for prod in &mut nt.productions {
       let mut should_add_follow = true;
       for token in &prod.list {
