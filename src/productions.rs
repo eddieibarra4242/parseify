@@ -276,19 +276,21 @@ pub(crate) fn follow_sets(nts: &mut Vec<NonTerminal>, nullable_info: &HashMap<St
           continue;
         }
 
-        let is_nt = token.kind.eq("ID");
-        if is_nt {
-          let value = nts_clone.iter().find(|x| x.name.eq(&token.value)).unwrap();
-          for term in &value.first_set {
-            let new_node = Node::new(term.clone(), true);
-            graph
-              .get_mut(&previous_token.value)
-              .as_mut()
-              .unwrap()
-              .insert(new_node);
-          }
-        } else {
+        if !token.kind.eq("ID") {
           let new_node = Node::new(token.value.clone(), true);
+          graph
+            .get_mut(&previous_token.value)
+            .as_mut()
+            .unwrap()
+            .insert(new_node);
+
+          previous_token = token;
+          continue;
+        }
+
+        let value = nts_clone.iter().find(|x| x.name.eq(&token.value)).unwrap();
+        for term in &value.first_set {
+          let new_node = Node::new(term.clone(), true);
           graph
             .get_mut(&previous_token.value)
             .as_mut()
@@ -297,47 +299,12 @@ pub(crate) fn follow_sets(nts: &mut Vec<NonTerminal>, nullable_info: &HashMap<St
         }
 
         if *nullable_info.get(&token.value).unwrap_or(&false) {
-          // Todo: iterate through list until something not nullable is found. Once it is finish.
-          let mut found_nonnullable = false;
-          for j in (i + 1)..prod.list.len() {
-            let j_token = &prod.list[j];
-            if !graph.contains_key(&j_token.value) {
-              graph.insert(j_token.value.clone(), HashSet::new());
-            }
-
-            if j_token.kind.eq("ID") {
-              let value = nts_clone.iter().find(|x| x.name.eq(&j_token.value)).unwrap();
-              for term in &value.first_set {
-                let new_node = Node::new(term.clone(), true);
-                graph
-                  .get_mut(&previous_token.value)
-                  .as_mut()
-                  .unwrap()
-                  .insert(new_node);
-              }
-            } else {
-              let new_node = Node::new(j_token.value.clone(), true);
-              graph
-                .get_mut(&previous_token.value)
-                .as_mut()
-                .unwrap()
-                .insert(new_node);
-            }
-
-            if !(*nullable_info.get(&j_token.value).unwrap_or(&false)) {
-              found_nonnullable = true;
-              break;
-            }
-          }
-
-          if !found_nonnullable {
-            let new_node = Node::new(nt.name.clone(), false);
-            graph
-              .get_mut(&previous_token.value)
-              .as_mut()
-              .unwrap()
-              .insert(new_node);
-          }
+          let new_node = Node::new(token.value.clone(), false);
+          graph
+            .get_mut(&previous_token.value)
+            .as_mut()
+            .unwrap()
+            .insert(new_node);
         }
 
         previous_token = token;
