@@ -1,0 +1,5 @@
+// The following language is intentionally ambiguous for a LL(1) parser but fine for LR(1).
+
+// Comma separated list of 'a's
+<list> ::= <list> ',' <e> | <e>;
+<e> ::= 'a';

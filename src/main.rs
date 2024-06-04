@@ -20,6 +20,7 @@ use std::fs;
 use clap::Parser;
 use crate::error_handler::{print_parse_err, print_scan_error};
 use crate::language::Language;
+use crate::ll_processing::ll_process;
 use crate::scanner::Scanner;
 
 mod scanner;
@@ -28,8 +29,9 @@ mod language;
 mod generator;
 mod parser;
 mod error_handler;
+mod ll_processing;
 
-/// Simple recursive descent parser generator.
+/// Simple parser generator.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -44,10 +46,23 @@ struct Args {
   /// output file's language
   #[arg(short, long)]
   lang: Option<String>,
+
+  /// Produce an LL(1) recursive descent parser
+  #[arg(long)]
+  ll: bool,
+
+  /// Produce an LR(1) stack based parser
+  #[arg(long)]
+  lr: bool,
 }
 
 fn main() {
   let cli_args = Args::parse();
+
+  if !(cli_args.ll ^ cli_args.lr) {
+    println!("Please select only one type of parser to generate! Selected: LL(1) and LR(1).\n");
+    return;
+  }
 
   // fixme: maybe make an install location for language specifications.
 
@@ -75,11 +90,16 @@ fn main() {
   }
 
   let mut non_terminals = non_terminals_wrapped.unwrap();
-
   productions::process(&mut non_terminals);
 
-  let output: String = generator::generate_parser(&non_terminals, &lang);
+  if cli_args.lr {
+    todo!("Implement LR processing...");
+  } else {
+    // Produce LL(1) parsers by default.
+    ll_process(&mut non_terminals);
+  }
 
+  let output: String = generator::generate_parser(&non_terminals, &lang);
   let result = fs::write(cli_args.output.unwrap_or("./output.txt".to_string()), output);
 
   if result.is_err() {
