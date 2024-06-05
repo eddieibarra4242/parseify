@@ -18,19 +18,19 @@
 
 use crate::scanner::ScanError::{NoMoreChars, UnexpectedChar};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Coord {
   pub(crate) line_num: usize,
   pub(crate) col: usize,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Span {
   pub(crate) start: Coord,
   pub(crate) end: Coord,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Token {
   pub(crate) kind: String,
   pub(crate) value: String,

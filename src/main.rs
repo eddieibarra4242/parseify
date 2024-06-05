@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 /**
  * Parsify, a simple recursive descent parser generator.
  * Copyright (C) 2024  Eduardo Ibarra
@@ -18,9 +19,10 @@
 
 use std::fs;
 use clap::Parser;
-use crate::error_handler::{print_parse_err, print_scan_error};
+use crate::error_handler::{print_parse_err, print_scan_error, print_state_table};
 use crate::language::Language;
 use crate::ll_processing::ll_process;
+use crate::lr_processing::lr_process;
 use crate::scanner::Scanner;
 
 mod scanner;
@@ -30,6 +32,7 @@ mod generator;
 mod parser;
 mod error_handler;
 mod ll_processing;
+mod lr_processing;
 
 /// Simple parser generator.
 #[derive(Parser, Debug)]
@@ -93,10 +96,15 @@ fn main() {
   productions::process(&mut non_terminals);
 
   if cli_args.lr {
-    todo!("Implement LR processing...");
+    let st = lr_process(&non_terminals);
+    print_state_table(&st);
   } else {
     // Produce LL(1) parsers by default.
     ll_process(&mut non_terminals);
+  }
+
+  if cli_args.lr {
+    todo!("Generate a stack based parser.");
   }
 
   let output: String = generator::generate_parser(&non_terminals, &lang);
