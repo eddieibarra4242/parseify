@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 /**
  * Parsify, a simple recursive descent parser generator.
  * Copyright (C) 2024  Eduardo Ibarra

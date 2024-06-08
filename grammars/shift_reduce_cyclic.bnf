@@ -1,0 +1,4 @@
+<stmt> ::= 'if' '(' <exp> ')' <block> <opt_else>;
+<exp> ::= <int>;
+<block> ::= '{' '}' | <stmt>;
+<opt_else> ::= 'else' <block> | ;

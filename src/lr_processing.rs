@@ -37,14 +37,11 @@ struct ContextualProduction {
 
 #[derive(Clone, Eq, PartialEq)]
 struct Closure {
-  seen_nts: HashSet<String>,
   prods: Vec<ContextualProduction>,
   transitions: HashMap<String, Box<Closure>>
 }
 
 pub(crate) struct State {
-  pub(crate) index: u64,
-
   // Vec<Action> allows shift-reduce and reduce-reduce ambiguity
   pub(crate) actions: HashMap<String, Vec<Action>>,
   pub(crate) nt_state_transitions: HashMap<String, u64>
@@ -84,7 +81,6 @@ impl ContextualProduction {
 impl Closure {
   fn new() -> Self {
     Closure {
-      seen_nts: HashSet::new(),
       prods: vec![],
       transitions: HashMap::new(),
     }
@@ -92,9 +88,8 @@ impl Closure {
 }
 
 impl State {
-  fn new(index: u64) -> Self {
+  fn new() -> Self {
     State {
-      index,
       actions: HashMap::new(),
       nt_state_transitions: HashMap::new(),
     }
@@ -124,7 +119,7 @@ fn can_append_to_set(set: &Vec<Closure>, appendage: &Closure) -> bool {
 fn find_closure_index(closure_set: &Vec<Closure>, closure: &Closure) -> Option<u64> {
   for i in 0..closure_set.len() {
     let clo = &closure_set[i];
-    if clo.seen_nts.eq(&closure.seen_nts) && clo.prods.eq(&closure.prods) {
+    if clo.prods.eq(&closure.prods) {
       return Some(i as u64);
     }
   }
@@ -168,18 +163,16 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
 
     if can_append_to_set(&closure_set, current) {
       closure_set.push(current.clone());
-    }
 
-    for value in current.transitions.values_mut() {
-      closure_queue.push_back(value)
+      for value in current.transitions.values_mut() {
+        closure_queue.push_back(value)
+      }
     }
   }
 
   let mut state_table = StateTable::new();
-  let mut index = 0u64;
   for current in &closure_set {
-    let mut state = State::new(index);
-    index += 1;
+    let mut state = State::new();
 
     for prod in &current.prods {
       if !prod.will_match.is_empty() {
@@ -203,7 +196,7 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
     }
 
     for (transition_value, next_closure) in &current.transitions {
-      // FIXME: there are different Closures in the tree and in the closure set. The Closures in the tree are not updated, so we need to recalculate the closure here, which is unnecessary.
+      // FIXME: there are different Closures in the tree and in the closure set. The Closures in the tree are not updated, so we need to recalculate the closure here, which should be unnecessary.
       let mut checkers = next_closure.as_ref().clone();
       closure(&nt_lookup, &mut checkers);
 
@@ -234,6 +227,7 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
 }
 
 fn closure(nt_lookup: &HashMap<String, &NonTerminal>, closure_so_far: &mut Closure) {
+  let mut seen_nts = HashSet::new();
   let mut closure_queue = VecDeque::new();
   for prod in &closure_so_far.prods {
     closure_queue.push_back(prod.clone());
@@ -248,11 +242,11 @@ fn closure(nt_lookup: &HashMap<String, &NonTerminal>, closure_so_far: &mut Closu
 
     let nt = nt_lookup.get(&current.will_match.first().unwrap().value).unwrap();
 
-    if closure_so_far.seen_nts.contains(&nt.name) {
+    if seen_nts.contains(&nt.name) {
       continue;
     }
 
-    closure_so_far.seen_nts.insert(nt.name.clone());
+    seen_nts.insert(nt.name.clone());
     for prod in &nt.productions {
       let context_prod = ContextualProduction::new(nt.name.clone(), prod, nt.follow_set.clone());
       closure_so_far.prods.push(context_prod.clone());

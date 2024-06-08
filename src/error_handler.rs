@@ -105,22 +105,33 @@ fn terminal_box_string(state: &State, terminal: &String) -> String {
     return String::new();
   }
 
-  match &actions[0] {
-    Action::Accept => "accept".to_string(),
-    Action::Shift(index) => format!("shift({})", index),
-    Action::Reduce(term_list, nt) => {
-      let mut res = format!("reduce({} ::= ", nt);
+  let mut result = String::new();
 
-      for term in term_list {
-        res.push_str(term.value.as_str());
-        res.push(' ');
-      }
+  for action in actions {
+    let action = match action {
+      Action::Accept => "accept".to_string(),
+      Action::Shift(index) => format!("shift({})", index),
+      Action::Reduce(term_list, nt) => {
+        let mut res = format!("reduce({} ::= ", nt);
 
-      res.pop();
-      res.push(')');
-      res
-    },
+        for term in term_list {
+          res.push_str(term.value.as_str());
+          res.push(' ');
+        }
+
+        res.pop();
+        res.push(')');
+        res
+      },
+    };
+
+    result.push_str(action.as_str());
+    result.push_str(", ");
   }
+
+  result.pop();
+  result.pop();
+  result
 }
 
 fn non_terminal_box_string(state: &State, nt: &String) -> String {
