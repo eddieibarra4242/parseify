@@ -95,17 +95,20 @@ pub(crate) fn print_ambiguity(nt_name: &String, intersection: Intersection<Strin
 }
 
 
-fn terminal_box_string(state: &State, terminal: &String) -> String {
+pub(crate) fn terminal_box_string(state: &State, terminal: &String) -> String {
   if !state.actions.contains_key(terminal) {
     return String::new();
   }
 
-  let actions = state.actions.get(terminal).unwrap();
-  if actions.is_empty() {
-    return String::new();
-  }
+  resolve_actions_to_string(state.actions.get(terminal).unwrap())
+}
 
+pub(crate) fn resolve_actions_to_string(actions: &Vec<Action>) -> String {
   let mut result = String::new();
+
+  if actions.is_empty() {
+    return result;
+  }
 
   for action in actions {
     let action = match action {

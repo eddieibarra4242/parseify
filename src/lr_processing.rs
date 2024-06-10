@@ -18,6 +18,8 @@
 
 use crate::productions::{NonTerminal, Production};
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::hash::Hash;
+use crate::error_handler::resolve_actions_to_string;
 use crate::lr_processing::Action::{Accept, Reduce, Shift};
 use crate::scanner::{Coord, Span, Token};
 
@@ -223,6 +225,8 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
     state_table.states.push(state);
   }
 
+  check_ambiguities(&state_table);
+
   state_table
 }
 
@@ -268,5 +272,19 @@ fn goto(closure: &mut Closure) {
 
     let advanced_prod = ContextualProduction::new_advanced(&prod);
     closure.transitions.get_mut(&transition_value.value).unwrap().as_mut().prods.push(advanced_prod);
+  }
+}
+
+fn check_ambiguities(state_table: &StateTable) {
+  for i in 0..state_table.states.len() {
+    let state = &state_table.states[i];
+    for (terminal, actions) in &state.actions {
+      if actions.len() <= 1 {
+        continue;
+      }
+
+      println!("State {} contains an ambiguity for lookahead {}:", i, terminal);
+      println!("  Actions: {}\n", resolve_actions_to_string(actions));
+    }
   }
 }

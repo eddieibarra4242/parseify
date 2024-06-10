@@ -56,6 +56,10 @@ struct Args {
   /// Produce an LR(1) stack based parser
   #[arg(long)]
   lr: bool,
+
+  /// Print the state table if applicable.
+  #[arg(long)]
+  print_table: bool,
 }
 
 fn main() {
@@ -96,7 +100,10 @@ fn main() {
 
   if cli_args.lr {
     let st = lr_process(&non_terminals);
-    print_state_table(&st);
+
+    if cli_args.print_table {
+      print_state_table(&st);
+    }
   } else {
     // Produce LL(1) parsers by default.
     ll_process(&mut non_terminals);
