@@ -17,8 +17,7 @@
  */
 
 use crate::productions::{NonTerminal, Production};
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
-use std::hash::Hash;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use crate::error_handler::resolve_actions_to_string;
 use crate::lr_processing::Action::{Accept, Reduce, Shift};
 use crate::scanner::{Coord, Span, Token};
@@ -40,7 +39,7 @@ struct ContextualProduction {
 #[derive(Clone, Eq, PartialEq)]
 struct Closure {
   prods: Vec<ContextualProduction>,
-  transitions: HashMap<String, Box<Closure>>
+  transitions: BTreeMap<String, Box<Closure>>
 }
 
 pub(crate) struct State {
@@ -84,7 +83,7 @@ impl Closure {
   fn new() -> Self {
     Closure {
       prods: vec![],
-      transitions: HashMap::new(),
+      transitions: BTreeMap::new(),
     }
   }
 }
@@ -108,9 +107,19 @@ impl StateTable {
   }
 }
 
+fn can_append_to_production_set(set: &Vec<ContextualProduction>, appendage: &ContextualProduction) -> bool {
+  for prod in set {
+    if prod == appendage {
+      return false;
+    }
+  }
+
+  true
+}
+
 fn can_append_to_set(set: &Vec<Closure>, appendage: &Closure) -> bool {
   for clo in set {
-    if clo.eq(appendage) {
+    if clo.prods == appendage.prods {
       return false;
     }
   }
@@ -155,22 +164,9 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
   let mut root_closure = Closure::new();
   root_closure.prods.push(start_prod);
 
-  let mut closure_queue = VecDeque::new();
-  closure_queue.push_back(&mut root_closure);
-
-  while !closure_queue.is_empty() {
-    let current = closure_queue.pop_front().unwrap();
-    closure(&nt_lookup, current);
-    goto(current);
-
-    if can_append_to_set(&closure_set, current) {
-      closure_set.push(current.clone());
-
-      for value in current.transitions.values_mut() {
-        closure_queue.push_back(value)
-      }
-    }
-  }
+  fill_out_automaton(&nt_lookup, &mut root_closure, &mut closure_set);
+  closure_set.clear();
+  recalculate_set(&root_closure, &mut closure_set);
 
   let mut state_table = StateTable::new();
   for current in &closure_set {
@@ -198,11 +194,7 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
     }
 
     for (transition_value, next_closure) in &current.transitions {
-      // FIXME: there are different Closures in the tree and in the closure set. The Closures in the tree are not updated, so we need to recalculate the closure here, which should be unnecessary.
-      let mut checkers = next_closure.as_ref().clone();
-      closure(&nt_lookup, &mut checkers);
-
-      let next_state_index: Option<u64> = find_closure_index(&closure_set, &checkers);
+      let next_state_index: Option<u64> = find_closure_index(&closure_set, next_closure);
 
       if next_state_index.is_none() {
         panic!("Unable to find State!");
@@ -230,32 +222,98 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
   state_table
 }
 
-fn closure(nt_lookup: &HashMap<String, &NonTerminal>, closure_so_far: &mut Closure) {
-  let mut seen_nts = HashSet::new();
-  let mut closure_queue = VecDeque::new();
-  for prod in &closure_so_far.prods {
-    closure_queue.push_back(prod.clone());
+fn fill_out_automaton(nt_lookup: &HashMap<String, &NonTerminal>, root: &mut Closure, closure_set: &mut Vec<Closure>) {
+  closure(nt_lookup, root);
+
+  if !can_append_to_set(closure_set, root) {
+    return;
   }
 
-  while !closure_queue.is_empty() {
-    let current = closure_queue.pop_front().unwrap();
+  goto(root);
+  closure_set.push(root.clone());
 
-    if current.will_match.is_empty() || !nt_lookup.contains_key(&current.will_match.first().unwrap().value) {
-      continue;
+  for value in root.transitions.values_mut() {
+    fill_out_automaton(nt_lookup, value, closure_set);
+  }
+}
+
+fn recalculate_set(root: &Closure, closure_set: &mut Vec<Closure>) {
+  if !can_append_to_set(closure_set, root) {
+    return;
+  }
+
+  closure_set.push(root.clone());
+
+  for value in root.transitions.values() {
+    recalculate_set(value, closure_set);
+  }
+}
+
+fn calculate_followers(nt_lookup: &HashMap<String, &NonTerminal>, parent_prod: &ContextualProduction) -> BTreeSet<String> {
+  let mut followers = BTreeSet::new();
+  let mut append_parent_set = true;
+
+  for i in 1..parent_prod.will_match.len() {
+    let token = &parent_prod.will_match[i];
+
+    if !nt_lookup.contains_key(&token.value) {
+      followers.insert(token.value.clone());
+      append_parent_set = false;
+      break;
     }
 
-    let nt = nt_lookup.get(&current.will_match.first().unwrap().value).unwrap();
+    let nt = nt_lookup.get(&token.value).unwrap();
+    followers.extend(nt.first_set.clone());
 
-    if seen_nts.contains(&nt.name) {
-      continue;
+    if !nt.is_nullable {
+      append_parent_set = false;
+      break;
+    }
+  }
+
+  if append_parent_set {
+    followers.extend(parent_prod.predict_set.clone());
+  }
+
+  followers
+}
+
+fn production_closure(nt_lookup: &HashMap<String, &NonTerminal>, seen_nts: &mut HashSet<String>, production: &ContextualProduction, production_set: &mut Vec<ContextualProduction>) {
+  if !can_append_to_production_set(production_set, production) {
+    return;
+  }
+
+  production_set.push(production.clone());
+  if production.will_match.is_empty() || !nt_lookup.contains_key(&production.will_match.first().unwrap().value) {
+    return;
+  }
+
+  let nt = nt_lookup.get(&production.will_match.first().unwrap().value).unwrap();
+  let followers = calculate_followers(nt_lookup, production);
+
+  if seen_nts.contains(&nt.name) {
+    for prod in production_set {
+      if prod.nt_name == nt.name {
+        prod.predict_set.extend(followers.clone());
+      }
     }
 
-    seen_nts.insert(nt.name.clone());
-    for prod in &nt.productions {
-      let context_prod = ContextualProduction::new(nt.name.clone(), prod, nt.follow_set.clone());
-      closure_so_far.prods.push(context_prod.clone());
-      closure_queue.push_back(context_prod);
-    }
+    return;
+  }
+
+  seen_nts.insert(nt.name.clone());
+  for prod in &nt.productions {
+    let context_prod = ContextualProduction::new(nt.name.clone(), prod, followers.clone());
+    production_closure(nt_lookup, seen_nts, &context_prod, production_set);
+  }
+}
+
+fn closure(nt_lookup: &HashMap<String, &NonTerminal>, closure_so_far: &mut Closure) {
+  let mut seen_nts = HashSet::new();
+  let initial_productions = closure_so_far.prods.clone();
+  closure_so_far.prods.clear();
+  for prod in initial_productions {
+    production_closure(nt_lookup, &mut seen_nts, &prod, &mut closure_so_far.prods);
   }
 }
 

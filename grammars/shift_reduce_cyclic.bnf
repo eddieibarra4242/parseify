@@ -1,3 +1,6 @@
+// Disclaimer: This grammar is not cyclic, but the automaton contains a cycle. This is what I mean by cyclic, since a
+// cycle in the automaton needs to not crash the program.
+
 <stmt> ::= 'if' '(' <exp> ')' <block> <opt_else>;
 <exp> ::= <int>;
 <block> ::= '{' '}' | <stmt>;
