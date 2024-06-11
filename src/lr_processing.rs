@@ -22,6 +22,7 @@ use crate::error_handler::resolve_actions_to_string;
 use crate::lr_processing::Action::{Accept, Reduce, Shift};
 use crate::scanner::{Coord, Span, Token};
 
+#[derive(Clone)]
 pub(crate) enum Action {
   Accept,
   Shift(u64),
@@ -44,6 +45,7 @@ struct Closure {
 
 pub(crate) struct State {
   // Vec<Action> allows shift-reduce and reduce-reduce ambiguity
+  pub(crate) common_actions: Vec<Action>,
   pub(crate) actions: HashMap<String, Vec<Action>>,
   pub(crate) nt_state_transitions: HashMap<String, u64>
 }
@@ -91,6 +93,7 @@ impl Closure {
 impl State {
   fn new() -> Self {
     State {
+      common_actions: vec![],
       actions: HashMap::new(),
       nt_state_transitions: HashMap::new(),
     }
@@ -138,7 +141,7 @@ fn find_closure_index(closure_set: &Vec<Closure>, closure: &Closure) -> Option<u
   None
 }
 
-pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
+pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>, is_k0: bool) -> StateTable {
   let mut nt_lookup = HashMap::new();
   let mut start_nt_name: String = String::new();
   for nt in non_terminals {
@@ -164,7 +167,7 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
   let mut root_closure = Closure::new();
   root_closure.prods.push(start_prod);
 
-  fill_out_automaton(&nt_lookup, &mut root_closure, &mut closure_set);
+  fill_out_automaton(&nt_lookup, &mut root_closure, &mut closure_set, is_k0);
   closure_set.clear();
   recalculate_set(&root_closure, &mut closure_set);
 
@@ -174,6 +177,22 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
 
     for prod in &current.prods {
       if !prod.will_match.is_empty() {
+        continue;
+      }
+
+      if is_k0 {
+        if prod.nt_name.is_empty() {
+          let eof_str = "EOF".to_string();
+          state_table.seen_terms.insert(eof_str.clone());
+          if !state.actions.contains_key(&eof_str) {
+            state.actions.insert(eof_str.clone(), vec![]);
+          }
+
+          state.actions.get_mut(&eof_str).unwrap().push(Accept);
+          continue;
+        }
+
+        state.common_actions.push(Reduce(prod.matched.clone(), prod.nt_name.clone()));
         continue;
       }
 
@@ -222,8 +241,8 @@ pub(crate) fn lr_process(non_terminals: &Vec<NonTerminal>) -> StateTable {
   state_table
 }
 
-fn fill_out_automaton(nt_lookup: &HashMap<String, &NonTerminal>, root: &mut Closure, closure_set: &mut Vec<Closure>) {
-  closure(nt_lookup, root);
+fn fill_out_automaton(nt_lookup: &HashMap<String, &NonTerminal>, root: &mut Closure, closure_set: &mut Vec<Closure>, is_k0: bool) {
+  closure(nt_lookup, root, is_k0);
 
   if !can_append_to_set(closure_set, root) {
     return;
@@ -233,7 +252,7 @@ fn fill_out_automaton(nt_lookup: &HashMap<String, &NonTerminal>, root: &mut Clos
   closure_set.push(root.clone());
 
   for value in root.transitions.values_mut() {
-    fill_out_automaton(nt_lookup, value, closure_set);
+    fill_out_automaton(nt_lookup, value, closure_set, is_k0);
   }
 }
 
@@ -278,7 +297,7 @@ fn calculate_followers(nt_lookup: &HashMap<String, &NonTerminal>, parent_prod: &
   followers
 }
 
-fn production_closure(nt_lookup: &HashMap<String, &NonTerminal>, seen_nts: &mut HashSet<String>, production: &ContextualProduction, production_set: &mut Vec<ContextualProduction>) {
+fn production_closure(nt_lookup: &HashMap<String, &NonTerminal>, seen_nts: &mut HashSet<String>, production: &ContextualProduction, production_set: &mut Vec<ContextualProduction>, is_k0: bool) {
   if !can_append_to_production_set(production_set, production) {
     return;
   }
@@ -289,7 +308,12 @@ fn production_closure(nt_lookup: &HashMap<String, &NonTerminal>, seen_nts: &mut 
   }
 
   let nt = nt_lookup.get(&production.will_match.first().unwrap().value).unwrap();
-  let followers = calculate_followers(nt_lookup, production);
+  let followers =
+    if is_k0 {
+      BTreeSet::new()
+    } else {
+      calculate_followers(nt_lookup, production)
+    };
 
   if seen_nts.contains(&nt.name) {
     for prod in production_set {
@@ -304,16 +328,16 @@ fn production_closure(nt_lookup: &HashMap<String, &NonTerminal>, seen_nts: &mut 
   seen_nts.insert(nt.name.clone());
   for prod in &nt.productions {
     let context_prod = ContextualProduction::new(nt.name.clone(), prod, followers.clone());
-    production_closure(nt_lookup, seen_nts, &context_prod, production_set);
+    production_closure(nt_lookup, seen_nts, &context_prod, production_set, is_k0);
   }
 }
 
-fn closure(nt_lookup: &HashMap<String, &NonTerminal>, closure_so_far: &mut Closure) {
+fn closure(nt_lookup: &HashMap<String, &NonTerminal>, closure_so_far: &mut Closure, is_k0: bool) {
   let mut seen_nts = HashSet::new();
   let initial_productions = closure_so_far.prods.clone();
   closure_so_far.prods.clear();
   for prod in initial_productions {
-    production_closure(nt_lookup, &mut seen_nts, &prod, &mut closure_so_far.prods);
+    production_closure(nt_lookup, &mut seen_nts, &prod, &mut closure_so_far.prods, is_k0);
   }
 }
 
@@ -336,13 +360,14 @@ fn goto(closure: &mut Closure) {
 fn check_ambiguities(state_table: &StateTable) {
   for i in 0..state_table.states.len() {
     let state = &state_table.states[i];
+
     for (terminal, actions) in &state.actions {
-      if actions.len() <= 1 {
+      if (actions.len() + state.common_actions.len()) <= 1 {
         continue;
       }
 
       println!("State {} contains an ambiguity for lookahead {}:", i, terminal);
-      println!("  Actions: {}\n", resolve_actions_to_string(actions));
+      println!("  Actions: {}\n", resolve_actions_to_string(actions, &state.common_actions));
     }
   }
 }

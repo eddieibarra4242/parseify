@@ -95,46 +95,48 @@ pub(crate) fn print_ambiguity(nt_name: &String, intersection: Intersection<Strin
 }
 
 
-pub(crate) fn terminal_box_string(state: &State, terminal: &String) -> String {
-  if !state.actions.contains_key(terminal) {
-    return String::new();
-  }
-
-  resolve_actions_to_string(state.actions.get(terminal).unwrap())
+pub(crate) fn terminal_box_string(state: &State, terminal: &String, common_actions: &Vec<Action>) -> String {
+  let empty_vec = vec![];
+  resolve_actions_to_string(state.actions.get(terminal).unwrap_or(&empty_vec), common_actions)
 }
 
-pub(crate) fn resolve_actions_to_string(actions: &Vec<Action>) -> String {
+pub(crate) fn resolve_actions_to_string(actions: &Vec<Action>, common_actions: &Vec<Action>) -> String {
   let mut result = String::new();
 
-  if actions.is_empty() {
-    return result;
+  for action in common_actions {
+    let action_string = resolve_action_to_string(action);
+    result.push_str(action_string.as_str());
+    result.push_str(", ");
   }
 
   for action in actions {
-    let action = match action {
-      Action::Accept => "accept".to_string(),
-      Action::Shift(index) => format!("shift({})", index),
-      Action::Reduce(term_list, nt) => {
-        let mut res = format!("reduce({} ::= ", nt);
-
-        for term in term_list {
-          res.push_str(term.value.as_str());
-          res.push(' ');
-        }
-
-        res.pop();
-        res.push(')');
-        res
-      },
-    };
-
-    result.push_str(action.as_str());
+    let action_string = resolve_action_to_string(action);
+    result.push_str(action_string.as_str());
     result.push_str(", ");
   }
 
   result.pop();
   result.pop();
   result
+}
+
+fn resolve_action_to_string(action: &Action) -> String {
+  match action {
+    Action::Accept => "accept".to_string(),
+    Action::Shift(index) => format!("shift({})", index),
+    Action::Reduce(term_list, nt) => {
+      let mut res = format!("reduce({} ::= ", nt);
+
+      for term in term_list {
+        res.push_str(term.value.as_str());
+        res.push(' ');
+      }
+
+      res.pop();
+      res.push(')');
+      res
+    },
+  }
 }
 
 fn non_terminal_box_string(state: &State, nt: &String) -> String {
@@ -172,7 +174,7 @@ pub(crate) fn print_state_table(state_table: &StateTable) {
     entries.push(format!("{}", i));
 
     for term in &middle_columns_header {
-      entries.push(terminal_box_string(state, term));
+      entries.push(terminal_box_string(state, term, &state.common_actions));
     }
 
     for nt in &right_columns_header {

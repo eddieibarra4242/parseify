@@ -57,6 +57,10 @@ struct Args {
   #[arg(long)]
   lr: bool,
 
+  /// Produce an LR(0) stack based parser
+  #[arg(long)]
+  lr0: bool,
+
   /// Print the state table if applicable.
   #[arg(long)]
   print_table: bool,
@@ -65,8 +69,8 @@ struct Args {
 fn main() {
   let cli_args = Args::parse();
 
-  if !(cli_args.ll ^ cli_args.lr) {
-    println!("Please select only one type of parser to generate! Selected: LL(1) and LR(1).\n");
+  if !(cli_args.ll ^ cli_args.lr ^ cli_args.lr0) {
+    println!("Please select only one type of parser to generate!\n");
     return;
   }
 
@@ -98,8 +102,8 @@ fn main() {
   let mut non_terminals = non_terminals_wrapped.unwrap();
   productions::process(&mut non_terminals);
 
-  if cli_args.lr {
-    let st = lr_process(&non_terminals);
+  if cli_args.lr || cli_args.lr0 {
+    let st = lr_process(&non_terminals, cli_args.lr0);
 
     if cli_args.print_table {
       print_state_table(&st);
